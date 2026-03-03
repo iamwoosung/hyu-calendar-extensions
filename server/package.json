@@ -1,0 +1,18 @@
+{
+  "name": "hyu-calendar-server",
+  "version": "1.0.0",
+  "description": "HYU Calendar Server",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.19.0",
+    "uuid": "^9.0.0",
+    "pg": "^8.12.0"
+  }
+}

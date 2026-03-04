@@ -2,10 +2,10 @@
   "name": "hyu-calendar-server",
   "version": "1.0.0",
   "description": "HYU Calendar Server",
-  "main": "index.js",
+  "main": "src/app.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch src/app.js dev",
+    "production": "node src/app.js production"
   },
   "dependencies": {
     "axios": "^1.7.0",

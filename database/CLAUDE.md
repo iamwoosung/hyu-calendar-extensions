@@ -1,0 +1,10 @@
+- Database: PostgreSQL
+- All data access must go through stored procedures.
+- Tables and fields must be named in PascalCase. (e.g. UserNo)
+- Table creation queries are saved in "01. Table.sql".
+- Stored procedure queries are saved in "02. SP.sql".
+- Default dataset queries are saved in "03. Default.sql".
+- All table and procedure creation queries must use DROP IF EXISTS before CREATE to ensure clean recreation.
+- String fields are limited to a maximum of 255 characters.
+- Procedure names must end with one of: _SET, _GET, _UPT, _DEL, _LIST.
+- Procedure names must be written in English only.

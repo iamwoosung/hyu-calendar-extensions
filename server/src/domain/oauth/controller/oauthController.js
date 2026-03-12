@@ -38,95 +38,19 @@ async function handleCallback(req, res) {
 
     logger.info(`[LOGIN] ${user.nickname} (id: ${user.id}) | isNew: ${user.isNew} | needsLmsSync: ${user.needsLmsSync}`);
 
-    let destination;
-    if (user.needsLmsSync) {
-      const p = new URLSearchParams({ session: sessionId });
-      if (finalRedirect) p.set('final_redirect', finalRedirect);
-      destination = `/auth/needs-sync?${p.toString()}`;
-    } else {
-      destination = finalRedirect
-        ? `${finalRedirect}?session=${sessionId}`
-        : `/auth/success?session=${sessionId}`;
-    }
+    const status = user.needsLmsSync ? 'needs_sync' : 'ok';
 
-    res.redirect(destination);
+    if (finalRedirect) {
+      res.redirect(`${finalRedirect}?session=${sessionId}&status=${status}`);
+    } else {
+      res.json({ session: sessionId, status });
+    }
   } catch (err) {
     logger.error(`[Kakao OAuth Error] ${JSON.stringify(err.response?.data ?? err.message)}`);
     res.status(500).send('카카오 인증 중 오류가 발생했습니다.');
   }
 }
 
-function authSuccess(req, res) {
-  res.send(`<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="utf-8">
-  <title>로그인 성공</title>
-  <style>
-    body { display:flex; justify-content:center; align-items:center; height:100vh;
-           font-family:sans-serif; background:#fffde7; margin:0; }
-    .box { text-align:center; }
-    .icon { font-size:48px; }
-    h2 { margin:12px 0 8px; color:#333; }
-    p  { color:#888; font-size:14px; }
-  </style>
-</head>
-<body>
-  <div class="box">
-    <div class="icon">✅</div>
-    <h2>카카오 로그인 성공!</h2>
-    <p>익스텐션이 이 창을 자동으로 닫습니다.</p>
-  </div>
-</body>
-</html>`);
-}
-
-function needsSync(req, res) {
-  const { session: sessionId, final_redirect: finalRedirect } = req.query;
-  const sessionJson = JSON.stringify(sessionId ?? '');
-  const finalRedirectJson = JSON.stringify(finalRedirect ?? '');
-
-  res.send(`<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="utf-8">
-  <title>LMS 동기화 필요</title>
-  <style>
-    body { display:flex; justify-content:center; align-items:center; height:100vh;
-           font-family:sans-serif; background:#e3f2fd; margin:0; }
-    .box { text-align:center; max-width:360px; }
-    .icon { font-size:48px; }
-    h2 { margin:12px 0 8px; color:#333; }
-    p  { color:#555; font-size:14px; line-height:1.6; }
-    button {
-      margin-top:20px; padding:12px 32px;
-      background:#1565c0; color:#fff;
-      border:none; border-radius:8px;
-      font-size:15px; cursor:pointer;
-    }
-    button:hover { background:#0d47a1; }
-  </style>
-</head>
-<body>
-  <div class="box">
-    <div class="icon">🎓</div>
-    <h2>한양대 LMS 동기화 필요</h2>
-    <p>한양대 LMS에 로그인하면 강의 일정을 자동으로 캘린더에 동기화할 수 있습니다.</p>
-    <button onclick="onConfirm()">확인 (LMS로 이동)</button>
-  </div>
-  <script>
-    function onConfirm() {
-      const session = ${sessionJson};
-      const finalRedirect = ${finalRedirectJson};
-      window.open('https://lms.hanyang.ac.kr', '_blank');
-      if (finalRedirect) {
-        location.href = finalRedirect + '?session=' + encodeURIComponent(session) + '&needs_sync=true';
-      }
-    }
-  </script>
-</body>
-</html>`);
-}
 
 function receiveSession(req, res) {
   const { sessionId, token } = req.body ?? {};
@@ -134,4 +58,4 @@ function receiveSession(req, res) {
   res.json({ ok: true });
 }
 
-module.exports = { redirectToKakao, handleCallback, authSuccess, needsSync, receiveSession };
+module.exports = { redirectToKakao, handleCallback, receiveSession };

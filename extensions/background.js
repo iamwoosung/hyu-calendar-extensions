@@ -6,13 +6,22 @@ chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 // ─── LMS 로그인 상태 확인 (ref/background.js 방식: 실제 API 호출 → 401 여부 판단) ───
 
 async function checkLmsLogin() {
-  // 브라우저 세션 쿠키가 자동 포함됨 (host_permissions 덕분)
-  const res = await fetch('https://learning.hanyang.ac.kr/api/v1/dashboard/dashboard_cards', {
-    credentials: 'include',  // 브라우저 세션 쿠키 포함 (MV3 서비스워커 필수)
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-  });
-  if (res.status === 401) return false;
-  return true;
+  // 현재 쿠키 이름 진단용 로그
+  const cookies = await chrome.cookies.getAll({ domain: 'learning.hanyang.ac.kr' });
+  console.log('[LMS 쿠키 목록]', cookies.map(c => c.name));
+
+  // API 응답으로 로그인 여부 판단 (401이면 미로그인)
+  try {
+    const res = await fetch('https://learning.hanyang.ac.kr/api/v1/dashboard/dashboard_cards', {
+      credentials: 'include',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    });
+    console.log('[LMS 로그인 확인] status:', res.status);
+    return res.status !== 401;
+  } catch (e) {
+    console.error('[LMS 로그인 확인 실패]', e.message);
+    return false;
+  }
 }
 
 async function getLmsCookies() {
@@ -28,10 +37,13 @@ chrome.tabs.onUpdated.addListener(async (_tabId, changeInfo, tab) => {
   if (!tab.url || !tab.url.startsWith('https://learning.hanyang.ac.kr')) return;
   if (tab.url.includes('/login')) return; // 아직 로그인 페이지
 
+  console.log('[탭 감지] URL:', tab.url);
+
   const { pendingLmsSync, pendingLmsSession } = await chrome.storage.local.get([
     'pendingLmsSync',
     'pendingLmsSession',
   ]);
+  console.log('[동기화 대기 여부]', pendingLmsSync, '| 세션:', pendingLmsSession);
   if (!pendingLmsSync) return;
 
   const loggedIn = await checkLmsLogin();

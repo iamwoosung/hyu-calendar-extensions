@@ -4,11 +4,19 @@ const SERVER_URL = 'http://localhost:3000';
 
 function showLogin() {
   document.getElementById('login-view').classList.remove('hidden');
+  document.getElementById('needs-sync-view').classList.add('hidden');
+  document.getElementById('main-view').classList.add('hidden');
+}
+
+function showNeedsSync() {
+  document.getElementById('login-view').classList.add('hidden');
+  document.getElementById('needs-sync-view').classList.remove('hidden');
   document.getElementById('main-view').classList.add('hidden');
 }
 
 function showMain() {
   document.getElementById('login-view').classList.add('hidden');
+  document.getElementById('needs-sync-view').classList.add('hidden');
   document.getElementById('main-view').classList.remove('hidden');
 }
 
@@ -53,7 +61,7 @@ document.getElementById('kakao-login-btn').addEventListener('click', async () =>
 
     const url = new URL(responseUrl);
     const session = url.searchParams.get('session');
-    const needsSync = url.searchParams.get('needs_sync') === 'true';
+    const status = url.searchParams.get('status') ?? 'ok';
     if (!session) throw new Error('세션 없음');
 
     const res = await fetch(`${SERVER_URL}/api/me?session=${session}`);
@@ -69,12 +77,12 @@ document.getElementById('kakao-login-btn').addEventListener('click', async () =>
       body: JSON.stringify({ sessionId: session }),
     }).catch(() => {});
 
-    // LMS 미연동 상태 → 백그라운드에서 LMS 로그인 완료 시 자동 동기화 대기
-    if (needsSync) {
+    if (status === 'needs_sync') {
       await chrome.storage.local.set({ pendingLmsSync: true, pendingLmsSession: session });
+      showNeedsSync();
+    } else {
+      showMain();
     }
-
-    showMain();
   } catch (e) {
     console.error('[카카오 로그인 실패]', e.message);
     btn.disabled = false;
@@ -84,6 +92,13 @@ document.getElementById('kakao-login-btn').addEventListener('click', async () =>
       </svg>
       카카오 로그인`;
   }
+});
+
+// ─── LMS 동기화 안내 확인 버튼 ────────────────────────────────────────────────
+
+document.getElementById('lms-confirm-btn').addEventListener('click', () => {
+  chrome.tabs.create({ url: 'https://learning.hanyang.ac.kr/login' });
+  showMain();
 });
 
 // ─── LMS 동기화 ───────────────────────────────────────────────────────────────

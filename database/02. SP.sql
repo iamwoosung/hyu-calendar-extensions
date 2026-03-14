@@ -192,6 +192,36 @@ END;
 $$;
 
 -- =============================================
+-- FN: USER_SYNC_STATUS_SET (동기화 상태 업데이트)
+-- Server: 요청 수신 시 1(요청) 설정
+-- Consumer: 처리 시작 시 2(처리중), 완료 시 3(완료), 실패 시 4(실패) 설정
+-- 반환: 0 = 성공, 9999 = 실패
+-- =============================================
+DROP FUNCTION IF EXISTS "USER_SYNC_STATUS_SET"(INTEGER, INTEGER);
+
+CREATE OR REPLACE FUNCTION "USER_SYNC_STATUS_SET"(
+    p_UserNo     INTEGER,
+    p_SyncStatus INTEGER
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE "User"
+    SET
+        "SyncStatus"     = p_SyncStatus,
+        "SyncUpdateDate" = NOW()
+    WHERE "UserNo" = p_UserNo;
+
+    RETURN 0;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN 9999;
+END;
+$$;
+
+-- =============================================
 -- FN: SUBJECT_LIST_ALL (사용자의 모든 과목 조회 - 삭제된 과목 포함)
 -- 반환: 과목 목록
 -- =============================================

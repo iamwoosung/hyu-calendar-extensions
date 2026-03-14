@@ -1,6 +1,7 @@
 const mq = require('../../../global/config/mq');
 const session = require('../../../global/modules/session');
 const logger = require('../../../global/modules/logger');
+const db = require('../../../global/config/db');
 
 async function sync(req, res) {
   logger.info('[LMS sync] 요청 수신');
@@ -23,6 +24,10 @@ async function sync(req, res) {
     const routingKey = process.env.MQ_ROUTING_KEY;
     const messageId = await mq.publish(routingKey, { session: sessionId, user, cookies });
     logger.info(`[LMS sync] MQ 전송 완료 | messageId: ${messageId}`);
+
+    // 동기화 요청 상태 기록 (Realtime → Extension에 즉시 push됨)
+    await db.query({ SP_NAME: 'USER_SYNC_STATUS_SET', p_UserNo: user.UserNo, p_SyncStatus: 1 });
+
     res.status(202).json({ success: true, messageId });
   } catch (e) {
     logger.error(`[LMS sync] MQ 전송 실패: ${e.message}`);

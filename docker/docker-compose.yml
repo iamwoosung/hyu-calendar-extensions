@@ -50,6 +50,9 @@ services:
       - ERL_AFLAGS=-proto_dist inet_tcp
       - DNS_NODES=''
       - ENABLE_TAILSCALE=false
+    volumes:
+      - ./realtime-entrypoint.sh:/realtime-entrypoint.sh:ro
+    command: sh /realtime-entrypoint.sh
     depends_on:
       postgres:
         condition: service_healthy

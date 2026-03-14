@@ -12,6 +12,8 @@ CREATE TABLE "User" (
     "UserHYUName"      VARCHAR(255),
     "UserHYUEmail"     VARCHAR(255),
     "UserPrivateEmail" VARCHAR(255),
+    "SyncStatus"       INTEGER      DEFAULT NULL,  -- 1:요청 / 2:처리중 / 3:완료 / 4:실패
+    "SyncUpdateDate"   TIMESTAMP    DEFAULT NULL,
     "UserInsertDate"   TIMESTAMP    DEFAULT NULL,
     "UserUpdateDate"   TIMESTAMP    DEFAULT NULL
 );
@@ -32,3 +34,21 @@ CREATE TABLE "Subject" (
     "SubjectUpdateDate" TIMESTAMP  DEFAULT NULL,
     UNIQUE ("UserNo", "SubjectCode", "Semester")
 );
+
+-- =============================================
+-- Supabase Realtime Publication 설정
+-- User 테이블 변경사항(SyncStatus)을 WAL로 노출
+-- Extension은 UserUUID 필터로 본인 row만 구독
+-- =============================================
+DROP PUBLICATION IF EXISTS supabase_realtime;
+CREATE PUBLICATION supabase_realtime FOR TABLE "User";
+
+-- Realtime postgres_cdc_rls 모드: JWT role:"anon" 권한 체크용
+DO $$ BEGIN
+    CREATE ROLE anon NOLOGIN;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+GRANT SELECT ON "User" TO anon;
+
+-- WAL에 전체 열 포함 (UserUUID 필터 및 SyncStatus 값 전달에 필요)
+ALTER TABLE "User" REPLICA IDENTITY FULL;

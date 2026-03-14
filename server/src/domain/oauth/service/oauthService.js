@@ -39,6 +39,7 @@ async function kakaoLogin(code) {
   const isNew = existing.length === 0;
   let needsLmsSync = false;
   let UserNo;
+  let UserUUID;
 
   if (isNew) {
     // 신규 유저 등록
@@ -50,14 +51,17 @@ async function kakaoLogin(code) {
     const newUser = await db.query({ SP_NAME: 'USER_GET', TABLE: true, p_UserKakaoID: user.id });
     if (newUser.length > 0) {
       UserNo = newUser[0].UserNo;
+      UserUUID = newUser[0].UserUUID;
     }
+    needsLmsSync = true; // 신규 유저는 항상 LMS 동기화 필요
   } else {
     // 기존 유저인데 HYU 연동이 안 된 경우
     needsLmsSync = existing[0].UserHYUID == null;
     UserNo = existing[0].UserNo;
+    UserUUID = existing[0].UserUUID;
   }
 
-  return { ...user, UserNo, isNew, needsLmsSync };
+  return { ...user, UserNo, UserUUID, isNew, needsLmsSync };
 }
 
 module.exports = { kakaoLogin };

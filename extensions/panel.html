@@ -136,12 +136,31 @@
       color: #1a1a2e;
     }
 
+    .header-icons-left {
+      position: absolute;
+      left: clamp(10px, 3vw, 16px);
+      display: flex;
+      gap: 4px;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .icon-btn:hover { color: #1a1a2e; background: #f0f0f0; }
+
     #sync-btn {
       position: absolute;
       right: clamp(10px, 3vw, 16px);
-      display: flex;
-      align-items: center;
-      gap: 5px;
       background: #0062cc;
       border: none;
       border-radius: 7px;
@@ -160,6 +179,112 @@
       flex: 1;
       padding: clamp(14px, 4vh, 24px) clamp(12px, 4vw, 20px);
     }
+
+    /* ─── Modal ───────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    }
+
+    .modal-box {
+      background: #fff;
+      border-radius: 14px;
+      width: calc(100% - 32px);
+      max-height: 78vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid #ebebeb;
+      flex-shrink: 0;
+    }
+
+    .modal-header h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 18px;
+      color: #aaa;
+      cursor: pointer;
+      padding: 2px 6px;
+      line-height: 1;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .modal-close:hover { color: #333; background: #f0f0f0; }
+
+    .modal-body {
+      padding: 16px;
+      overflow-y: auto;
+      flex: 1;
+      font-size: 12px;
+      color: #444;
+      line-height: 1.8;
+    }
+
+    .modal-body h4 {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 6px;
+      margin-top: 14px;
+    }
+
+    .modal-body h4:first-child { margin-top: 0; }
+
+    .modal-body p { margin-bottom: 6px; }
+
+    #debug-log {
+      font-size: 11px;
+      color: #555;
+      line-height: 1.8;
+      white-space: pre-wrap;
+    }
+
+    /* ─── Toast ───────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 9999;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
+    #toast.success { background: #2e7d32; }
+    #toast.error   { background: #c62828; }
+    #toast.info    { background: #1565c0; }
   </style>
 </head>
 <body>
@@ -189,17 +314,63 @@
   <!-- 메인 화면 -->
   <div id="main-view" class="hidden">
     <header class="main-header">
+      <div class="header-icons-left">
+        <button id="info-btn" class="icon-btn" title="서비스 안내">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+        </button>
+        <button id="debug-btn" class="icon-btn" title="디버그 로그">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 17 10 11 4 5"/>
+            <line x1="12" y1="19" x2="20" y2="19"/>
+          </svg>
+        </button>
+      </div>
       <h1>한양대 노티파이어</h1>
-      <button id="sync-btn">⟳ Sync</button>
+      <button id="sync-btn">동기화</button>
     </header>
     <main class="main-content">
-      <div id="debug-log" style="font-size:11px;color:#555;line-height:1.8;white-space:pre-wrap;"></div>
     </main>
   </div>
 
-  <!-- @supabase/realtime-js UMD 번들 (로컬 파일 필요)
-       설치: npm install @supabase/realtime-js
-       복사: node_modules/@supabase/realtime-js/dist/umd/realtime-js.js → extensions/realtime.js -->
+  <!-- 서비스 안내 모달 -->
+  <div id="info-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>서비스 안내</h3>
+        <button class="modal-close" data-modal="info-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <h4>개인정보 처리 방침</h4>
+        <p>한양대 노티파이어는 사용자의 학번 및 개인정보를 수집하거나 저장하지 않습니다.</p>
+        <h4>LMS 세션 사용</h4>
+        <p>한양대 LMS 로그인 후 발급된 세션과 토큰만을 사용하여 수강 과목 정보를 조회합니다. 세션 정보는 동기화 요청 시 일회성으로만 사용됩니다.</p>
+        <h4>과목 정보 처리</h4>
+        <p>동기화 과정에서 조회된 과목 정보(강의명, 과제 일정 등)는 캘린더 등록 후 즉시 폐기되며, 서버에 영구 저장되지 않습니다.</p>
+        <h4>카카오 로그인</h4>
+        <p>카카오 로그인을 통해 발급된 세션 토큰은 서비스 인증 목적으로만 사용되며, 카카오 계정의 개인정보는 수집하지 않습니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 디버그 로그 모달 -->
+  <div id="debug-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>디버그 로그</h3>
+        <button class="modal-close" data-modal="debug-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="debug-log"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
   <script src="realtime.js"></script>
   <script src="panel.js"></script>
 </body>

@@ -61,6 +61,7 @@ chrome.tabs.onUpdated.addListener(async (_tabId, changeInfo, tab) => {
     });
     if (!res.ok) throw new Error(`서버 오류: ${res.status}`);
 
+    chrome.runtime.sendMessage({ action: 'AUTO_SYNC_STARTED' }).catch(() => {});
     chrome.action.setBadgeText({ text: '✓' });
     chrome.action.setBadgeBackgroundColor({ color: '#22c55e' });
     setTimeout(() => chrome.action.setBadgeText({ text: '' }), 5000);

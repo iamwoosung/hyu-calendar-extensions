@@ -1,7 +1,7 @@
 const { RealtimeClient } = supabaseRealtime; // realtime.js에서 로드됨
 const SERVER_URL = 'http://localhost:3000';
 const REALTIME_URL = 'http://localhost:4000/socket';
-// JWT_SECRET(docker/pkg.env)으로 서명된 anon JWT 토큰 — raw secret이 아님
+// docker/pkg.env.dev의 ANON_JWT 값 (JWT_SECRET으로 서명된 anon 토큰)
 const REALTIME_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzczNDYzMTE5LCJleHAiOjIwODg4MjMxMTl9.ZZ6JdonZ4odp906W3M1S8NwX4A_DoOJBcKKKWhuvaZY';
 
 // ─── View 전환 ────────────────────────────────────────────────────────────────
@@ -115,6 +115,26 @@ function dbg(msg) {
   el.textContent += `[${time}] ${msg}\n`;
 }
 
+// ─── Toast ────────────────────────────────────────────────────────────────────
+
+let toastTimer = null;
+
+function showToast(message, type = 'success') {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  if (toastTimer) { clearTimeout(toastTimer); el.classList.remove('show'); }
+  el.textContent = message;
+  el.className = type; // 'success' | 'error' | 'info'
+  // 한 프레임 뒤에 show 추가해야 transition 발동
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => el.classList.add('show'));
+  });
+  toastTimer = setTimeout(() => {
+    el.classList.remove('show');
+    toastTimer = null;
+  }, 3000);
+}
+
 // ─── Realtime 구독 ─────────────────────────────────────────────────────────────
 
 let realtimeChannel = null;
@@ -176,12 +196,14 @@ document.getElementById('sync-btn').addEventListener('click', async () => {
     subscribeToSyncStatus(
       userUUID,
       () => {
-        btn.textContent = '✓ 완료';
-        setTimeout(() => { btn.textContent = '⟳ Sync'; btn.disabled = false; }, 2000);
+        showToast('✓ LMS 동기화 완료!', 'success');
+        btn.textContent = '동기화';
+        btn.disabled = false;
       },
       () => {
-        btn.textContent = '⚠ 오류 발생';
-        setTimeout(() => { btn.textContent = '⟳ Sync'; btn.disabled = false; }, 2000);
+        showToast('✗ 동기화 실패. 다시 시도해주세요.', 'error');
+        btn.textContent = '동기화';
+        btn.disabled = false;
       }
     );
   }
@@ -201,14 +223,50 @@ document.getElementById('sync-btn').addEventListener('click', async () => {
       await chrome.storage.local.set({ pendingLmsSync: true, pendingLmsSession: session });
       chrome.tabs.create({ url: 'https://learning.hanyang.ac.kr/login' });
       btn.textContent = 'LMS 로그인 필요';
-      setTimeout(() => { btn.textContent = '⟳ Sync'; btn.disabled = false; }, 3000);
+      setTimeout(() => { btn.textContent = '동기화'; btn.disabled = false; }, 3000);
     } else {
       // Realtime 구독 해제
       if (realtimeChannel) { realtimeChannel.unsubscribe(); realtimeChannel = null; }
       console.error('[LMS 동기화 실패]', response?.error);
       btn.textContent = '⚠ 오류 발생';
-      setTimeout(() => { btn.textContent = '⟳ Sync'; btn.disabled = false; }, 2000);
+      setTimeout(() => { btn.textContent = '동기화'; btn.disabled = false; }, 2000);
     }
+  });
+});
+
+// ─── 초기 자동 동기화 Realtime 구독 ──────────────────────────────────────────
+
+chrome.runtime.onMessage.addListener((request) => {
+  if (request.action !== 'AUTO_SYNC_STARTED') return;
+  chrome.storage.local.get('userUUID', ({ userUUID }) => {
+    if (!userUUID) return;
+    subscribeToSyncStatus(
+      userUUID,
+      () => showToast('✓ LMS 동기화 완료!', 'success'),
+      () => showToast('✗ 동기화 실패. 다시 시도해주세요.', 'error'),
+    );
+  });
+});
+
+// ─── 모달 ─────────────────────────────────────────────────────────────────────
+
+document.getElementById('info-btn').addEventListener('click', () => {
+  document.getElementById('info-modal').classList.remove('hidden');
+});
+
+document.getElementById('debug-btn').addEventListener('click', () => {
+  document.getElementById('debug-modal').classList.remove('hidden');
+});
+
+document.querySelectorAll('.modal-close').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.getElementById(btn.dataset.modal).classList.add('hidden');
+  });
+});
+
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.classList.add('hidden');
   });
 });
 

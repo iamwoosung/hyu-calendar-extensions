@@ -1,7 +1,7 @@
 -- =============================================
 -- Table: User
 -- =============================================
-DROP TABLE IF EXISTS "User";
+DROP TABLE IF EXISTS "User" CASCADE;
 
 CREATE TABLE "User" (
     "UserNo"           SERIAL       PRIMARY KEY,
@@ -21,18 +21,57 @@ CREATE TABLE "User" (
 -- =============================================
 -- Table: Subject (사용자 수강 과목)
 -- =============================================
-DROP TABLE IF EXISTS "Subject";
+DROP TABLE IF EXISTS "Subject" CASCADE;
 
 CREATE TABLE "Subject" (
-    "SubjectNo"       SERIAL       PRIMARY KEY,
-    "UserNo"          INTEGER      NOT NULL REFERENCES "User"("UserNo") ON DELETE CASCADE,
-    "SubjectCode"     VARCHAR(255) NOT NULL,
-    "SubjectName"     VARCHAR(255) NOT NULL,
-    "Semester"        VARCHAR(255) NOT NULL DEFAULT '',
-    "DeleteFlag"      INTEGER      NOT NULL DEFAULT 0,
-    "SubjectInsertDate" TIMESTAMP  DEFAULT NULL,
-    "SubjectUpdateDate" TIMESTAMP  DEFAULT NULL,
+    "SubjectNo"         SERIAL       PRIMARY KEY,
+    "UserNo"            INTEGER      NOT NULL REFERENCES "User"("UserNo") ON DELETE CASCADE,
+    "LmsID"             INTEGER      NOT NULL,           -- Canvas 내부 course ID (API 호출용)
+    "SubjectCode"       VARCHAR(255) NOT NULL,
+    "SubjectName"       VARCHAR(255) NOT NULL,
+    "Semester"          VARCHAR(255) NOT NULL DEFAULT '',
+    "DeleteFlag"        INTEGER      NOT NULL DEFAULT 0,
+    "SubjectInsertDate" TIMESTAMP    DEFAULT NULL,
+    "SubjectUpdateDate" TIMESTAMP    DEFAULT NULL,
     UNIQUE ("UserNo", "SubjectCode", "Semester")
+);
+
+-- =============================================
+-- Table: Video (동영상 시청 현황)
+-- =============================================
+DROP TABLE IF EXISTS "Video" CASCADE;
+
+CREATE TABLE "Video" (
+    "VideoNo"         SERIAL        PRIMARY KEY,
+    "SubjectNo"       INTEGER       NOT NULL REFERENCES "Subject"("SubjectNo") ON DELETE CASCADE,
+    "LmsItemID"       INTEGER       NOT NULL,            -- LearningX module item ID
+    "Title"           VARCHAR(500)  NOT NULL,
+    "IsWatched"       BOOLEAN       NOT NULL DEFAULT false,
+    "DurationSec"     INTEGER       DEFAULT NULL,        -- 영상 길이(초), 파일류는 NULL
+    "PeriodStart"     TIMESTAMP     DEFAULT NULL,        -- unlock_at, NULL = 즉시
+    "PeriodEnd"       TIMESTAMP     DEFAULT NULL,        -- due_at, NULL = 기한없음
+    "VideoInsertDate" TIMESTAMP     DEFAULT NULL,
+    "VideoUpdateDate" TIMESTAMP     DEFAULT NULL,
+    UNIQUE ("SubjectNo", "LmsItemID")
+);
+
+-- =============================================
+-- Table: Assignment (과제 제출 현황)
+-- =============================================
+DROP TABLE IF EXISTS "Assignment" CASCADE;
+
+CREATE TABLE "Assignment" (
+    "AssignmentNo"         SERIAL        PRIMARY KEY,
+    "SubjectNo"            INTEGER       NOT NULL REFERENCES "Subject"("SubjectNo") ON DELETE CASCADE,
+    "LmsAssignmentID"      INTEGER       NOT NULL,       -- Canvas assignment ID
+    "Title"                VARCHAR(500)  NOT NULL,
+    "IsSubmitted"          BOOLEAN       NOT NULL DEFAULT false,
+    "WorkflowState"        VARCHAR(50)   DEFAULT NULL,   -- submitted / graded / unsubmitted
+    "PeriodStart"          TIMESTAMP     DEFAULT NULL,   -- unlock_at, NULL = 즉시
+    "PeriodEnd"            TIMESTAMP     DEFAULT NULL,   -- due_at
+    "AssignmentInsertDate" TIMESTAMP     DEFAULT NULL,
+    "AssignmentUpdateDate" TIMESTAMP     DEFAULT NULL,
+    UNIQUE ("SubjectNo", "LmsAssignmentID")
 );
 
 -- =============================================

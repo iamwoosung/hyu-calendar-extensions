@@ -35,10 +35,22 @@ async function handle(message) {
     const cookieHeader = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ');
     const client = createLmsClient(cookieHeader);
 
-    // 수강 과목 목록 조회
-    const dashRes = await client.get(`${LMS_BASE}/api/v1/dashboard/dashboard_cards`);
+    // 수강 과목 목록 + 사용자 프로필 병렬 조회
+    const [dashRes, profileRes] = await Promise.all([
+      client.get(`${LMS_BASE}/api/v1/dashboard/dashboard_cards`),
+      client.get(`${LMS_BASE}/api/v1/users/self/profile`).catch(() => ({ data: null })),
+    ]);
     const courses = dashRes.data;
     if (!Array.isArray(courses)) throw new Error('과목 목록 조회 실패');
+
+    let userHYUID = null, userHYUName = null, userHYUEmail = null;
+    if (profileRes.data) {
+      userHYUID    = profileRes.data.login_id || null;
+      const rawName = profileRes.data.name || '';
+      userHYUName  = rawName.split('/')[0].trim() || null;
+      userHYUEmail = profileRes.data.primary_email || null;
+      logger.info(`[LMS_SYNC] 사용자 프로필 조회 완료 | 학번: ${userHYUID}, 이름: ${userHYUName}, 이메일: ${userHYUEmail}`);
+    }
 
     // 과목 리스트를 JSON 형식으로 변환
     const subjectsList = courses.map(course => {
@@ -107,8 +119,8 @@ async function handle(message) {
     });
     logger.info(`[LMS_SYNC] DB 저장 완료 | result: ${JSON.stringify(result)}`);
 
-    // 완료 상태 기록 (Realtime → Extension에 push됨)
-    await db.query({ SP_NAME: 'USER_SYNC_STATUS_SET', p_UserNo: user.UserNo, p_SyncStatus: 3 });
+    // 완료 상태 기록 + 학번/이름/이메일 저장 (Realtime → Extension에 push됨)
+    await db.query({ SP_NAME: 'USER_SYNC_STATUS_SET', p_UserNo: user.UserNo, p_SyncStatus: 3, p_UserHYUID: userHYUID, p_UserHYUName: userHYUName, p_UserHYUEmail: userHYUEmail });
     logger.info(`[LMS_SYNC] 처리 완료 | messageId: ${message.messageId} | 과목 수: ${courseDetails.length}`);
 
     return courseDetails;

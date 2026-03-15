@@ -194,14 +194,20 @@ $$;
 -- =============================================
 -- FN: USER_SYNC_STATUS_SET (동기화 상태 업데이트)
 -- Server: 요청 수신 시 1(요청) 설정
--- Consumer: 처리 시작 시 2(처리중), 완료 시 3(완료), 실패 시 4(실패) 설정
+-- Consumer: 처리 시작 시 2(처리중), 완료 시 3(완료) + 학번/이름/이메일 저장, 실패 시 4(실패) 설정
+-- p_UserHYUID / p_UserHYUName / p_UserHYUEmail: 완료 시에만 전달, NULL이면 기존 값 유지
 -- 반환: 0 = 성공, 9999 = 실패
 -- =============================================
 DROP FUNCTION IF EXISTS "USER_SYNC_STATUS_SET"(INTEGER, INTEGER);
+DROP FUNCTION IF EXISTS "USER_SYNC_STATUS_SET"(INTEGER, INTEGER, VARCHAR, VARCHAR);
+DROP FUNCTION IF EXISTS "USER_SYNC_STATUS_SET"(INTEGER, INTEGER, VARCHAR, VARCHAR, VARCHAR);
 
 CREATE OR REPLACE FUNCTION "USER_SYNC_STATUS_SET"(
-    p_UserNo     INTEGER,
-    p_SyncStatus INTEGER
+    p_UserNo        INTEGER,
+    p_SyncStatus    INTEGER,
+    p_UserHYUID     VARCHAR DEFAULT NULL,
+    p_UserHYUName   VARCHAR DEFAULT NULL,
+    p_UserHYUEmail  VARCHAR DEFAULT NULL
 )
 RETURNS INTEGER
 LANGUAGE plpgsql
@@ -210,7 +216,11 @@ BEGIN
     UPDATE "User"
     SET
         "SyncStatus"     = p_SyncStatus,
-        "SyncUpdateDate" = NOW()
+        "SyncUpdateDate" = NOW(),
+        "UserHYUID"      = COALESCE(p_UserHYUID,    "UserHYUID"),
+        "UserHYUName"    = COALESCE(p_UserHYUName,  "UserHYUName"),
+        "UserHYUEmail"   = COALESCE(p_UserHYUEmail, "UserHYUEmail"),
+        "UserUpdateDate" = NOW()
     WHERE "UserNo" = p_UserNo;
 
     RETURN 0;

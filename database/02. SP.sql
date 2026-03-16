@@ -91,10 +91,11 @@ RETURNS INTEGER
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_Semester VARCHAR(255);
+    v_Semester    VARCHAR(255);
+    v_LmsID       INTEGER;
     v_SubjectCode VARCHAR(255);
     v_SubjectName VARCHAR(255);
-    v_Item JSONB;
+    v_Item        JSONB;
 BEGIN
     -- 현재 월을 기반으로 학기 결정 (1~6월: 1학기, 7~12월: 2학기)
     v_Semester := TO_CHAR(NOW(), 'YYYY') || '-' || CASE
@@ -105,11 +106,13 @@ BEGIN
     -- JSON 배열의 각 항목 처리 (INSERT or UPDATE)
     FOR v_Item IN SELECT jsonb_array_elements(p_SubjectsJson)
     LOOP
+        v_LmsID       := (v_Item->>'LmsID')::INTEGER;
         v_SubjectCode := v_Item->>'SubjectCode';
         v_SubjectName := v_Item->>'SubjectName';
 
         INSERT INTO "Subject" (
             "UserNo",
+            "LmsID",
             "SubjectCode",
             "SubjectName",
             "Semester",
@@ -118,6 +121,7 @@ BEGIN
             "SubjectUpdateDate"
         ) VALUES (
             p_UserNo,
+            v_LmsID,
             v_SubjectCode,
             v_SubjectName,
             v_Semester,
@@ -127,8 +131,9 @@ BEGIN
         )
         ON CONFLICT ("UserNo", "SubjectCode", "Semester")
         DO UPDATE SET
+            "LmsID"       = v_LmsID,
             "SubjectName" = v_SubjectName,
-            "DeleteFlag" = 0,
+            "DeleteFlag"  = 0,
             "SubjectUpdateDate" = NOW();
     END LOOP;
 
@@ -138,10 +143,8 @@ BEGIN
     WHERE "UserNo" = p_UserNo
       AND "Semester" = v_Semester
       AND "DeleteFlag" = 0
-      AND ("SubjectCode", "SubjectName") NOT IN (
-        SELECT
-            json_item->>'SubjectCode',
-            json_item->>'SubjectName'
+      AND "SubjectCode" NOT IN (
+        SELECT json_item->>'SubjectCode'
         FROM jsonb_array_elements(p_SubjectsJson) json_item
       );
 
@@ -150,6 +153,130 @@ BEGIN
 EXCEPTION
     WHEN OTHERS THEN
         RAISE WARNING 'SUBJECT_SYNC Error - SQLSTATE: %, Message: %', SQLSTATE, SQLERRM;
+        RETURN 9999;
+END;
+$$;
+
+-- =============================================
+-- FN: ASSIGNMENT_SYNC (과목 과제 전체 동기화)
+-- p_LmsID로 SubjectNo를 조회한 뒤 UPSERT
+-- 반환: 0 = 성공, 9999 = 실패
+-- =============================================
+DROP FUNCTION IF EXISTS "ASSIGNMENT_SYNC"(INTEGER, INTEGER, JSONB);
+
+CREATE OR REPLACE FUNCTION "ASSIGNMENT_SYNC"(
+    p_UserNo      INTEGER,
+    p_LmsID       INTEGER,
+    p_Assignments JSONB
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_SubjectNo INTEGER;
+    v_Item      JSONB;
+BEGIN
+    SELECT "SubjectNo" INTO v_SubjectNo
+    FROM "Subject"
+    WHERE "UserNo" = p_UserNo AND "LmsID" = p_LmsID AND "DeleteFlag" = 0
+    LIMIT 1;
+
+    IF v_SubjectNo IS NULL THEN RETURN 9999; END IF;
+
+    FOR v_Item IN SELECT jsonb_array_elements(p_Assignments)
+    LOOP
+        INSERT INTO "Assignment" (
+            "SubjectNo", "LmsAssignmentID", "Title",
+            "IsSubmitted", "WorkflowState",
+            "PeriodStart", "PeriodEnd",
+            "AssignmentInsertDate", "AssignmentUpdateDate"
+        ) VALUES (
+            v_SubjectNo,
+            (v_Item->>'LmsAssignmentID')::INTEGER,
+            v_Item->>'Title',
+            (v_Item->>'IsSubmitted')::BOOLEAN,
+            v_Item->>'WorkflowState',
+            NULLIF(v_Item->>'PeriodStart', '')::TIMESTAMP,
+            NULLIF(v_Item->>'PeriodEnd',   '')::TIMESTAMP,
+            NOW(), NOW()
+        )
+        ON CONFLICT ("SubjectNo", "LmsAssignmentID")
+        DO UPDATE SET
+            "Title"               = EXCLUDED."Title",
+            "IsSubmitted"         = EXCLUDED."IsSubmitted",
+            "WorkflowState"       = EXCLUDED."WorkflowState",
+            "PeriodStart"         = EXCLUDED."PeriodStart",
+            "PeriodEnd"           = EXCLUDED."PeriodEnd",
+            "AssignmentUpdateDate" = NOW();
+    END LOOP;
+
+    RETURN 0;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE WARNING 'ASSIGNMENT_SYNC Error - SQLSTATE: %, Message: %', SQLSTATE, SQLERRM;
+        RETURN 9999;
+END;
+$$;
+
+-- =============================================
+-- FN: VIDEO_SYNC (과목 동영상 시청 현황 전체 동기화)
+-- p_LmsID로 SubjectNo를 조회한 뒤 UPSERT
+-- 반환: 0 = 성공, 9999 = 실패
+-- =============================================
+DROP FUNCTION IF EXISTS "VIDEO_SYNC"(INTEGER, INTEGER, JSONB);
+
+CREATE OR REPLACE FUNCTION "VIDEO_SYNC"(
+    p_UserNo INTEGER,
+    p_LmsID  INTEGER,
+    p_Videos JSONB
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_SubjectNo INTEGER;
+    v_Item      JSONB;
+BEGIN
+    SELECT "SubjectNo" INTO v_SubjectNo
+    FROM "Subject"
+    WHERE "UserNo" = p_UserNo AND "LmsID" = p_LmsID AND "DeleteFlag" = 0
+    LIMIT 1;
+
+    IF v_SubjectNo IS NULL THEN RETURN 9999; END IF;
+
+    FOR v_Item IN SELECT jsonb_array_elements(p_Videos)
+    LOOP
+        INSERT INTO "Video" (
+            "SubjectNo", "LmsItemID", "Title",
+            "IsWatched", "DurationSec",
+            "PeriodStart", "PeriodEnd",
+            "VideoInsertDate", "VideoUpdateDate"
+        ) VALUES (
+            v_SubjectNo,
+            (v_Item->>'LmsItemID')::INTEGER,
+            v_Item->>'Title',
+            (v_Item->>'IsWatched')::BOOLEAN,
+            NULLIF(v_Item->>'DurationSec', '')::INTEGER,
+            NULLIF(v_Item->>'PeriodStart', '')::TIMESTAMP,
+            NULLIF(v_Item->>'PeriodEnd',   '')::TIMESTAMP,
+            NOW(), NOW()
+        )
+        ON CONFLICT ("SubjectNo", "LmsItemID")
+        DO UPDATE SET
+            "Title"           = EXCLUDED."Title",
+            "IsWatched"       = EXCLUDED."IsWatched",
+            "DurationSec"     = EXCLUDED."DurationSec",
+            "PeriodStart"     = EXCLUDED."PeriodStart",
+            "PeriodEnd"       = EXCLUDED."PeriodEnd",
+            "VideoUpdateDate" = NOW();
+    END LOOP;
+
+    RETURN 0;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE WARNING 'VIDEO_SYNC Error - SQLSTATE: %, Message: %', SQLSTATE, SQLERRM;
         RETURN 9999;
 END;
 $$;

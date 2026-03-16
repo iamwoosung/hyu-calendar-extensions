@@ -5,7 +5,7 @@ const db = require('../../../global/config/db');
 
 async function sync(req, res) {
   logger.info('[LMS sync] 요청 수신');
-  const { session: sessionId, cookies } = req.body;
+  const { session: sessionId, cookies, resultToken } = req.body;
 
   if (!sessionId || !cookies) {
     return res.status(400).json({ error: '세션 또는 쿠키가 누락되었습니다.' });
@@ -22,7 +22,7 @@ async function sync(req, res) {
       throw new Error('MQ_ROUTING_KEY 환경변수가 필요합니다');
     }
     const routingKey = process.env.MQ_ROUTING_KEY;
-    const messageId = await mq.publish(routingKey, { session: sessionId, user, cookies });
+    const messageId = await mq.publish(routingKey, { session: sessionId, user, cookies, resultToken });
     logger.info(`[LMS sync] MQ 전송 완료 | messageId: ${messageId}`);
 
     // 동기화 요청 상태 기록 (Realtime → Extension에 즉시 push됨)

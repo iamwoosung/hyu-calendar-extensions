@@ -13,7 +13,10 @@
   "dependencies": {
     "amqplib": "^0.10.9",
     "axios": "^1.7.0",
+    "axios-cookiejar-support": "^4.0.4",
     "dotenv": "^16.4.0",
-    "pg": "^8.11.3"
+    "node-rsa": "^1.1.1",
+    "pg": "^8.11.3",
+    "tough-cookie": "^4.1.3"
   }
 }

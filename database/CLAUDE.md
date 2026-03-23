@@ -2,7 +2,7 @@
 - All data access must go through stored functions.
 - Tables and fields must be named in PascalCase. (e.g. UserNo)
 - Table creation queries are saved in "01. Table.sql".
-- Stored function queries are saved in "02. SP.sql".
+- Stored function queries are saved in "02. Function.sql".
 - Default dataset queries are saved in "03. Default.sql".
 - All table and function creation queries must use DROP IF EXISTS before CREATE to ensure clean recreation.
 - String fields are limited to a maximum of 255 characters.

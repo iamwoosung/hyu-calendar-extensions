@@ -9,8 +9,13 @@ async function getCalendar(req, res) {
   if (!user) return res.status(401).json({ error: '유효하지 않은 세션입니다.' });
 
   try {
-    const rows = await db.query({ SP_NAME: 'CALENDAR_GET', p_UserNo: user.UserNo });
-    const items = rows[0]?.CALENDAR_GET ?? [];
+    const [eventsRows, summaryRows] = await Promise.all([
+      db.query({ SP_NAME: 'CALENDAR_GET', p_UserNo: user.UserNo }),
+      db.query({ SP_NAME: 'CALENDAR_SUMMARY_GET', p_UserNo: user.UserNo }),
+    ]);
+
+    const items = eventsRows[0]?.CALENDAR_GET ?? [];
+    const summary = summaryRows[0]?.CALENDAR_SUMMARY_GET ?? {};
 
     const events = items.map(item => ({
       id: `${item.Type[0]}${item.ItemNo}`,
@@ -24,7 +29,7 @@ async function getCalendar(req, res) {
       },
     }));
 
-    res.json({ events });
+    res.json({ events, summary });
   } catch (e) {
     logger.error(`[CALENDAR] 조회 실패: ${e.message}`);
     res.status(500).json({ error: e.message });

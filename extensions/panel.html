@@ -262,9 +262,62 @@
       overflow-y: auto;
     }
 
+    /* ─── Summary Dashboard ──────────────── */
+    #calendar-summary {
+      padding: 16px 10px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .summary-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .summary-card {
+      flex: 1;
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px 12px;
+      border: 1px solid #ebebeb;
+    }
+
+    .summary-card.urgent {
+      border-color: #ffcdd2;
+      background: #fff;
+    }
+
+    .summary-card-label {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+
+    .summary-card.urgent .summary-card-label {
+      color: #c62828;
+    }
+
+    .summary-card-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+
+    .summary-card.urgent .summary-card-value {
+      color: #c62828;
+    }
+
+    .summary-card-unit {
+      font-size: 12px;
+      font-weight: 400;
+      color: #888;
+      margin-left: 2px;
+    }
+
     /* ─── Calendar ────────────────────────── */
     #calendar-wrap {
-      padding: 12px 10px;
+      padding: 20px 10px 12px;
     }
 
     .fc {
@@ -483,6 +536,28 @@
       <button id="sync-btn">동기화</button>
     </header>
     <main class="main-content">
+      <div id="calendar-summary">
+        <div class="summary-row">
+          <div class="summary-card">
+            <div class="summary-card-label">전체 미시청 영상</div>
+            <div class="summary-card-value"><span id="sum-total-unwatched">-</span><span class="summary-card-unit">개</span></div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-card-label">전체 미제출 과제</div>
+            <div class="summary-card-value"><span id="sum-total-unsubmitted">-</span><span class="summary-card-unit">개</span></div>
+          </div>
+        </div>
+        <div class="summary-row">
+          <div class="summary-card urgent">
+            <div class="summary-card-label">임박 미시청 영상 (7일 이내)</div>
+            <div class="summary-card-value"><span id="sum-urgent-unwatched">-</span><span class="summary-card-unit">개</span></div>
+          </div>
+          <div class="summary-card urgent">
+            <div class="summary-card-label">임박 미제출 과제 (7일 이내)</div>
+            <div class="summary-card-value"><span id="sum-urgent-unsubmitted">-</span><span class="summary-card-unit">개</span></div>
+          </div>
+        </div>
+      </div>
       <div id="calendar-wrap">
         <div class="fc-legend">
           <div class="fc-legend-item">

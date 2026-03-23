@@ -405,6 +405,7 @@ async function loadCalendar() {
     if (res.ok) {
       const data = await res.json();
       events = data.events ?? [];
+      renderSummary(data.summary ?? {});
     }
   } catch (_) { /* 오프라인 등 오류 시 빈 캘린더 표시 */ }
 
@@ -421,6 +422,7 @@ async function loadCalendar() {
     headerToolbar: { left: 'prev', center: 'title', right: 'next' },
     height: 'auto',
     dayMaxEvents: 3,
+    moreLinkText: count => `+${count}개 더 보기`,
     events,
     eventClick(info) {
       const p = info.event.extendedProps;
@@ -431,6 +433,14 @@ async function loadCalendar() {
     },
   });
   calendarInstance.render();
+}
+
+function renderSummary(s) {
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '-'; };
+  set('sum-total-unwatched',    s.totalUnwatched);
+  set('sum-total-unsubmitted',  s.totalUnsubmitted);
+  set('sum-urgent-unwatched',   s.urgentUnwatched);
+  set('sum-urgent-unsubmitted', s.urgentUnsubmitted);
 }
 
 // ─── 시작 ─────────────────────────────────────────────────────────────────────

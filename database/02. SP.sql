@@ -534,6 +534,56 @@ $$;
 
 
 -- ============================================================
+-- FN: CALENDAR_SUMMARY_GET (캘린더 요약 통계 조회)
+-- ============================================================
+DROP FUNCTION IF EXISTS "CALENDAR_SUMMARY_GET"(INTEGER);
+
+CREATE OR REPLACE FUNCTION "CALENDAR_SUMMARY_GET"(
+    p_UserNo INTEGER
+)
+RETURNS JSONB
+AS $$
+DECLARE
+    v_Result JSONB;
+BEGIN
+    SELECT jsonb_build_object(
+        'totalUnwatched',    (
+            SELECT COUNT(*) FROM "Video" v
+            JOIN "Subject" s ON v."SubjectNo" = s."SubjectNo"
+            WHERE s."UserNo" = p_UserNo AND s."DeleteFlag" = 0 AND v."IsWatched" = false
+        ),
+        'totalUnsubmitted',  (
+            SELECT COUNT(*) FROM "Assignment" a
+            JOIN "Subject" s ON a."SubjectNo" = s."SubjectNo"
+            WHERE s."UserNo" = p_UserNo AND s."DeleteFlag" = 0 AND a."IsSubmitted" = false
+        ),
+        'urgentUnwatched',   (
+            SELECT COUNT(*) FROM "Video" v
+            JOIN "Subject" s ON v."SubjectNo" = s."SubjectNo"
+            WHERE s."UserNo" = p_UserNo AND s."DeleteFlag" = 0
+              AND v."IsWatched" = false
+              AND v."PeriodEnd" IS NOT NULL
+              AND v."PeriodEnd" BETWEEN NOW() AND NOW() + INTERVAL '7 days'
+        ),
+        'urgentUnsubmitted', (
+            SELECT COUNT(*) FROM "Assignment" a
+            JOIN "Subject" s ON a."SubjectNo" = s."SubjectNo"
+            WHERE s."UserNo" = p_UserNo AND s."DeleteFlag" = 0
+              AND a."IsSubmitted" = false
+              AND a."PeriodEnd" IS NOT NULL
+              AND a."PeriodEnd" BETWEEN NOW() AND NOW() + INTERVAL '7 days'
+        )
+    ) INTO v_Result;
+    RETURN v_Result;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE WARNING 'CALENDAR_SUMMARY_GET Error - SQLSTATE: %, Message: %', SQLSTATE, SQLERRM;
+        RETURN '{"totalUnwatched":0,"totalUnsubmitted":0,"urgentUnwatched":0,"urgentUnsubmitted":0}'::JSONB;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================================
 -- FN: CALENDAR_GET (캘린더 이벤트 조회)
 -- ============================================================
 DROP FUNCTION IF EXISTS "CALENDAR_GET"(INTEGER);
